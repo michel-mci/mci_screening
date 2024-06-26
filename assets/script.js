@@ -4,6 +4,8 @@ import {
   DrawingUtils
 } from "/modules/tasks-vision-outer.js"
 
+console.log("Check2");
+
 let poseLandmarker = undefined
 let runningMode = "IMAGE"
 let enableWebcamButton
@@ -69,56 +71,77 @@ function enableCam() {
   })
 }
 
-let lastVideoTime = -1
+let lastVideoTime = 0
+
+let lastFrameTime = performance.now();
 
 let loading = false;
 
 async function predictWebcam() {
-    if(!loading){
+    let currentTime = performance.now();
+    let timeDiff = currentTime - lastFrameTime; // in ms
 
-        loading = true;
+    // if less than 33.33ms has passed (which is roughly 30 FPS), skip this frame
+    if (timeDiff < 33.33) {
+      window.requestAnimationFrame(predictWebcam);
+      return;
+    }
+    lastFrameTime = currentTime; // update last frame time
 
-        let videoHeight = video.videoHeight;
-        let videoWidth = video.videoWidth;
-        console.log(videoHeight, videoWidth);
+    if (loading) {
+      window.requestAnimationFrame(predictWebcam);
+      return;
+    }
+    loading = true;
 
-        let aspectRatio = videoHeight / videoWidth;
-        const liveView = document.getElementById("liveView");
-        liveView.style.width = '100%';
-        liveView.style.height = (liveView.offsetWidth * aspectRatio) + 'px';
+    let videoHeight = video.videoHeight;
+    let videoWidth = video.videoWidth;
 
-        // Now let's start detecting the stream.
-        if (runningMode === "IMAGE") {
+    let aspectRatio = videoHeight / videoWidth;
+    const liveView = document.getElementById("liveView");
+    liveView.style.width = '100%';
+    liveView.style.height = (liveView.offsetWidth * aspectRatio) + 'px';
+
+    // Now let's start detecting the stream.
+    if (runningMode === "IMAGE") {
         runningMode = "VIDEO"
         await poseLandmarker.setOptions({ runningMode: "VIDEO" })
-        }
-        let startTimeMs = performance.now()
-        if (lastVideoTime !== video.currentTime) {
-        lastVideoTime = video.currentTime
-        poseLandmarker.detectForVideo(video, startTimeMs, result => {
-          window.flutter_inappwebview.callHandler("sendPose", result.landmarks, aspectRatio);
-
-          /*
-          canvasCtx.save()
-          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height)
-
-          for (const landmark of result.landmarks) {
-            drawingUtils.drawLandmarks(landmark, {
-              radius: data => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1)
-            })
-            drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS)
-          }
-
-          canvasCtx.restore()
-          */
-
-          loading = false;
-        })
     }
 
+    let startTimeMs = performance.now();
+
+    if (lastVideoTime === 0 || lastVideoTime !== video.currentTime) {
+        if(lastVideoTime === 0) {
+            lastVideoTime = video.currentTime;
+        }
+        console.log("LastVideoTime: " + lastVideoTime + " CurrentTime: " + video.currentTime);
+        let timeSinceLastFrame = video.currentTime - lastVideoTime;
+        lastVideoTime = video.currentTime
+
+        poseLandmarker.detectForVideo(video, startTimeMs, result => {
+          if(result.landmarks.length > 0) {
+              const landmarks = result.landmarks[0];
+              const worldLandmarks = result.worldLandmarks[0];
+
+              const poseData = landmarks.map(
+                (landmark, index) => {
+                    return {
+                        imageX: landmark.x,
+                        imageY: landmark.y,
+                        worldX: worldLandmarks[index].x,
+                        worldY: worldLandmarks[index].y,
+                        worldZ: worldLandmarks[index].z
+                    };
+                }
+              );
+
+              window.flutter_inappwebview.callHandler("sendPose", poseData, timeSinceLastFrame, aspectRatio);
+          }
+          loading = false;
+        });
+      }
     // Call this function again to keep predicting when the browser is ready.
     if (webcamRunning === true) {
       window.requestAnimationFrame(predictWebcam)
     }
-  }
 }

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:mci_screening/landmark_snapshot_writer.dart';
+import 'package:mci_screening/model/landmark_data.dart';
+import 'package:mci_screening/model/landmark_snapshot.dart';
+import 'package:mci_screening/pages/playback.dart';
 import 'package:mci_screening/widgets/pose_painter.dart';
 
 class ScreeningPage extends StatefulWidget {
@@ -11,10 +15,17 @@ class ScreeningPage extends StatefulWidget {
 
 class _ScreeningPageState extends State<ScreeningPage> {
   List<Offset> points = [];
+  LandmarkSnapshotWriter dataWriter = LandmarkSnapshotWriter();
+
+  @override
+  void dispose() {
+    dataWriter.closeFile();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -23,7 +34,7 @@ class _ScreeningPageState extends State<ScreeningPage> {
         children: [
           InAppWebView(
             initialUrlRequest:
-            URLRequest(url: WebUri("http://localhost:8080/index.html")),
+                URLRequest(url: WebUri("http://localhost:8080/index.html")),
             initialSettings: InAppWebViewSettings(
               mediaPlaybackRequiresUserGesture: false,
               allowsInlineMediaPlayback: true,
@@ -35,27 +46,64 @@ class _ScreeningPageState extends State<ScreeningPage> {
               );
             },
             onWebViewCreated: (controller) {
-              controller.addJavaScriptHandler(handlerName: 'sendPose', callback: (args) {
-                // Now you can use the `points` list in your Dart code
-                List<Offset> newPoints = [];
+              dataWriter.openFile('data');
 
-                double aspectRatio = args[1];
-                for (var point in args[0][0]) {
-                  double x = (1.0 - point['x']) * screenSize.width;
-                  double y = point['y'] * screenSize.width * aspectRatio + (screenSize.height - (screenSize.width * aspectRatio)) * 0.5;
+              controller.addJavaScriptHandler(
+                  handlerName: 'sendPose',
+                  callback: (args) {
+                    // Now you can use the `points` list in your Dart code
+                    List<LandmarkData> landmarkList = [];
 
-                  newPoints.add(Offset(x, y));
-                }
+                    for (var landmarkJson in args[0]) {
+                      LandmarkData landmarkData =
+                          LandmarkData.fromJson(landmarkJson);
 
-                setState(() {
-                  points = newPoints;
-                });
-              });
+                      landmarkList.add(landmarkData);
+                    }
+
+                    double timeSinceLastFrame = args[1];
+
+                    LandmarkFrame snapshot = LandmarkFrame(
+                      landmarks: landmarkList,
+                      timeSinceLastFrame: timeSinceLastFrame,
+                    );
+
+                    dataWriter.writeNextLandmarkSnapshot(snapshot);
+
+                    double aspectRatio = args[2];
+
+                    setState(() {
+                      points = landmarkList.map((landmarkData) {
+                        double x =
+                            (1.0 - landmarkData.imageX) * screenSize.width;
+                        double y = landmarkData.imageY *
+                                screenSize.width *
+                                aspectRatio +
+                            (screenSize.height -
+                                    (screenSize.width * aspectRatio)) *
+                                0.5;
+                        return Offset(x, y);
+                      }).toList();
+                    });
+                  });
             },
           ),
           _ModelPainter(
             customPainter: PosePainter(
               points: points,
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ElevatedButton(
+              child: const Text('Playback'),
+              onPressed: () {
+                dataWriter.closeFile();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PlaybackPage()),
+                );
+              },
             ),
           ),
         ],
@@ -67,8 +115,7 @@ class _ScreeningPageState extends State<ScreeningPage> {
 class _ModelPainter extends StatelessWidget {
   const _ModelPainter({
     required this.customPainter,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final CustomPainter customPainter;
 
