@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mci_screening/landmark_snapshot_reader.dart';
-import 'package:mci_screening/model/landmark_snapshot.dart';
+import 'package:mci_screening/landmark_frame_reader.dart';
+import 'package:mci_screening/model/landmark_frame.dart';
 import 'package:mci_screening/widgets/pose_painter.dart';
 
 class PlaybackPage extends StatefulWidget {
@@ -12,7 +12,7 @@ class PlaybackPage extends StatefulWidget {
 
 class _PlaybackPageState extends State<PlaybackPage> {
   List<Offset> points = [];
-  LandmarkSnapshotReader dataReader = LandmarkSnapshotReader();
+  LandmarkFrameReader dataReader = LandmarkFrameReader();
 
   @override
   void dispose() {
@@ -29,19 +29,12 @@ class _PlaybackPageState extends State<PlaybackPage> {
   }
 
   void playNextFrame(Size screenSize) async {
-    print("PlayNextFrame");
-    LandmarkFrame? landmarkFrame = await dataReader.readNextLandmarkData();
+    LandmarkFrame? landmarkFrame = await dataReader.readNextLandmarkFrame();
 
     if (landmarkFrame != null) {
-      print("LandmarkFrame is not null");
-
-      print("timeSinceLastFrame ${landmarkFrame.timeSinceLastFrame}");
-
       await Future.delayed(Duration(
         milliseconds: (landmarkFrame.timeSinceLastFrame * 1000).round(),
       ));
-
-      print("Landmarks: ${landmarkFrame.landmarks.length}");
 
       setState(() {
         points = landmarkFrame.landmarks.map((landmarkData) {
@@ -53,7 +46,6 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
       playNextFrame(screenSize);
     } else {
-      print("LandmarkFrame is null");
       dataReader.closeFile();
     }
   }

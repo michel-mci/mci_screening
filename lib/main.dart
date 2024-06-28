@@ -13,6 +13,8 @@ void main() async {
   await Permission.microphone.request(); // if you need microphone permission
   await localhostServer.start();
 
+  PlatformInAppWebViewController.debugLoggingSettings.enabled = false;
+
   runApp(const MyApp());
 }
 

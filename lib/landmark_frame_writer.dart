@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:mci_screening/model/landmark_snapshot.dart';
+import 'package:mci_screening/model/landmark_frame.dart';
 import 'package:path_provider/path_provider.dart';
 
-class LandmarkSnapshotWriter {
+class LandmarkFrameWriter {
   late IOSink _sink;
   bool _isClosed = false;
 
@@ -29,7 +29,7 @@ class LandmarkSnapshotWriter {
     _isClosed = true;
   }
 
-  void writeNextLandmarkSnapshot(LandmarkFrame landmarkFrame) {
+  void writeNextLandmarkFrame(LandmarkFrame landmarkFrame) {
     if(_isClosed){
       return;
     }

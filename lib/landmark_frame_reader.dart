@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:mci_screening/model/landmark_snapshot.dart';
+import 'package:mci_screening/model/landmark_frame.dart';
 import 'package:path_provider/path_provider.dart';
 
-class LandmarkSnapshotReader {
+class LandmarkFrameReader {
   late RandomAccessFile _raf;
   int _nextByteIndex = 0;
 
@@ -16,7 +16,7 @@ class LandmarkSnapshotReader {
     await _raf.close();
   }
 
-  Future<LandmarkFrame?> readNextLandmarkData() async {
+  Future<LandmarkFrame?> readNextLandmarkFrame() async {
     int byteCount = LandmarkFrame.byteLength;
     if (_nextByteIndex + byteCount > await _raf.length()) {
       return null;

@@ -114,7 +114,6 @@ async function predictWebcam() {
         if(lastVideoTime === 0) {
             lastVideoTime = video.currentTime;
         }
-        console.log("LastVideoTime: " + lastVideoTime + " CurrentTime: " + video.currentTime);
         let timeSinceLastFrame = video.currentTime - lastVideoTime;
         lastVideoTime = video.currentTime
 
@@ -130,7 +129,8 @@ async function predictWebcam() {
                         imageY: landmark.y,
                         worldX: worldLandmarks[index].x,
                         worldY: worldLandmarks[index].y,
-                        worldZ: worldLandmarks[index].z
+                        worldZ: worldLandmarks[index].z,
+                        visibility: landmark.visibility,
                     };
                 }
               );

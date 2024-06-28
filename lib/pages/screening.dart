@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:mci_screening/landmark_snapshot_writer.dart';
+import 'package:mci_screening/error_patterns/rep_counter.dart';
+import 'package:mci_screening/landmark_frame_writer.dart';
 import 'package:mci_screening/model/landmark_data.dart';
-import 'package:mci_screening/model/landmark_snapshot.dart';
+import 'package:mci_screening/model/landmark_frame.dart';
 import 'package:mci_screening/pages/playback.dart';
 import 'package:mci_screening/widgets/pose_painter.dart';
 
@@ -15,7 +16,8 @@ class ScreeningPage extends StatefulWidget {
 
 class _ScreeningPageState extends State<ScreeningPage> {
   List<Offset> points = [];
-  LandmarkSnapshotWriter dataWriter = LandmarkSnapshotWriter();
+  LandmarkFrameWriter dataWriter = LandmarkFrameWriter();
+  RepCounter repCounter = RepCounter();
 
   @override
   void dispose() {
@@ -63,12 +65,15 @@ class _ScreeningPageState extends State<ScreeningPage> {
 
                     double timeSinceLastFrame = args[1];
 
-                    LandmarkFrame snapshot = LandmarkFrame(
+                    LandmarkFrame frame = LandmarkFrame(
                       landmarks: landmarkList,
                       timeSinceLastFrame: timeSinceLastFrame,
                     );
 
-                    dataWriter.writeNextLandmarkSnapshot(snapshot);
+                    repCounter.process(frame, callback: () {
+                      setState(() {});
+                    });
+                    dataWriter.writeNextLandmarkFrame(frame);
 
                     double aspectRatio = args[2];
 
@@ -94,16 +99,30 @@ class _ScreeningPageState extends State<ScreeningPage> {
             ),
           ),
           Align(
+            alignment: Alignment.topCenter,
+            child: SafeArea(
+              child: Text(
+                repCounter.reps.toString(),
+                style: const TextStyle(
+                  fontSize: 35.0,
+                ),
+              ),
+            ),
+          ),
+          Align(
             alignment: Alignment.bottomCenter,
-            child: ElevatedButton(
-              child: const Text('Playback'),
-              onPressed: () {
-                dataWriter.closeFile();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PlaybackPage()),
-                );
-              },
+            child: SafeArea(
+              child: OutlinedButton(
+                child: const Text('Playback'),
+                onPressed: () {
+                  dataWriter.closeFile();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const PlaybackPage()),
+                  );
+                },
+              ),
             ),
           ),
         ],
